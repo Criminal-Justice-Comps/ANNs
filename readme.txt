@@ -26,6 +26,3 @@ Findings:
             2         | 0.5522
             3         | 0.5522
             10        | 0.5522
-
-
-  Here are our findings with the real data:
