@@ -43,6 +43,9 @@ TODO:
     Potential problem: always predict negative for violent Recidivism
 """
 
+FEATURES_TO_USE = ['sex', 'race', 'age', 'juv_fel_count', 'juv_misd_count', 'juv_other_count', 'priors_count']
+RACE = {"African-American":1, "Other":0, "Caucasian":2, "Hispanic":3, "Native American":4, "Asian":5}
+SEX = {"Male":1, "Female":0}
 
 
 import keras
@@ -67,10 +70,10 @@ def parse_args():
     p.add_argument("--loadModel", default='NULL', help='Filepath to load tree from. By default, no tree will be loaded.')
     p.add_argument("--saveOutput", default='ANNPred.csv', help='Filepath to save the ANN in.')
     p.add_argument("--trainSize", type=int, default=8000, help="Number of training examples to use. Validation set will have 9861-trainSize examples")
-    p.add_argument("--inputNodes", type=int, default=16, help="The number of nodes in the input layer. For TVF.csv, this is 7.")
+    p.add_argument("--inputNodes", type=int, default=7, help="The number of nodes in the input layer. For TVF.csv, this is 7.")
     p.add_argument("--epochs", type=int, default=10, help="The number of times to iterate through the data when training the network.")
     p.add_argument("--batchSize", type=int, default=64, help="The batch size to use when training the network.")
-    p.add_argument("--layerSize", type=int, default=16, help="The number of nodes each hidden layer should have.")
+    p.add_argument("--layerSize", type=int, default=7, help="The number of nodes each hidden layer should have.")
     p.add_argument("--guessViolent", action="store_true", default=False, help="Predict Violent Recidivism rather than Recidivism.")
     args = p.parse_args()
     return args
@@ -84,6 +87,8 @@ def get_data(filepath, train_test_split, check_violent):
     val_labels = []
 
     ground_truth = -1
+    race = 1
+    sex = 0
     to_use = []
     with open(filepath) as file:
         i = 0
@@ -91,6 +96,16 @@ def get_data(filepath, train_test_split, check_violent):
             split_line = line.split(",")
             if i == 0 :
                 features = split_line
+                to_use = []
+                # gather the indexes of the features to use
+                for i, feat in enumerate(features):
+                    if feat in FEATURES_TO_USE:
+                        to_use.append(i)
+
+                    if feat == 'race':
+                        race = i
+                    elif feat == 'sex':
+                        sex = i
 
                 # get the correct index of the ground truth to guess
                 ground_truth = features.index('is_recid')
@@ -99,14 +114,33 @@ def get_data(filepath, train_test_split, check_violent):
 
             elif i < train_test_split:
                 person = []
-                for element in split_line:
-                    person.append(int(element))
+                for ind in to_use:
+                    element = split_line[ind]
+                    # if the feature in question is numeric, just use that
+                    if element.isnumeric():
+                        person.append(int(element))
+                    else:
+                        # if the feature is non-numeric, use the ascii code
+                        # person.append(sum([ord(character) for character in element]))
+                        if ind == race:
+                            person.append(RACE[element])
+                        elif ind == sex:
+                            person.append(SEX[element])
+
                 training.append(person)
                 training_labels.append(int(split_line[ground_truth]))
             else:
                 person = []
-                for element in split_line:
-                    person.append(int(element))
+                for ind in to_use:
+                    element = split_line[ind]
+                    if element.isnumeric():
+                        person.append(int(element))
+                    else:
+                        # person.append(sum([ord(character) for character in element]))
+                        if ind == race:
+                            person.append(RACE[element])
+                        elif ind == sex:
+                            person.append(SEX[element])
 
                 val_data.append(person)
                 val_labels.append(int(split_line[ground_truth]))
@@ -121,10 +155,8 @@ def ann(x, y, test_x, test_y, batch_size, epochs, num_layers, input_node_num, la
     score = None
     if loadANN != 'NULL':
         model = load_model(loadANN)
-        if not len(x) == 0 and not len(test_x) == 0:
-            x = np.concatenate((x, test_x), axis=0)
-        if not len(y) == 0 and not len(test_y) == 0:
-            y = np.concatenate((y, test_y), axis=0)
+        x = np.concatenate((x, test_x), axis=0)
+        y = np.concatenate((y, test_y), axis=0)
         score = model.evaluate(x, y, verbose=1)
     else:
         model = Sequential()
@@ -165,46 +197,27 @@ def main():
     print("\n\n", "-----"*30)
     print("With", args.numLayers, "hidden layers, accuracy was:", scores[1])
 
-    if args.loadModel == "NULL":
-        predictions = model.predict(val_data)
-        predictions = np.ndarray.tolist(predictions)
-        y = np.ndarray.tolist(val_labels)
-        x = np.ndarray.tolist(val_data)
-    else:
-        x = training
-        y = training_labels
-        if not len(training) == 0 and not len(val_data) == 0:
-            x = np.concatenate((x, val_data), axis=0)
-        if not len(training_labels) == 0 and not len(val_labels) == 0:
-            y = np.concatenate((y, val_labels), axis=0)
-        predictions = model.predict(x)
-        predictions = np.ndarray.tolist(predictions)
-        y = np.ndarray.tolist(y)
-        x = np.ndarray.tolist(x)
+    predictions = model.predict(val_data)
+    predictions = np.ndarray.tolist(predictions)
+    label_list = np.ndarray.tolist(val_labels)
+    val_data = np.ndarray.tolist(val_data)
 
-
-    confusion = confusion_matrix(predictions, y)
+    confusion = confusion_matrix(predictions, label_list)
     print("---"*30)
-    print("""                                       Truth
-                                1                   0
-
-                          1     {}              {}
-        Prediction
-                          0     {}               {}
-        """.format(confusion[0],confusion[1],confusion[2],confusion[3]))
+    print("[tp, tn]\n[fp, fn]\n", confusion[:2], "\n", confusion[2:])
 
     string = 'age,race,sex,race,age,juv_fel_count,juv_misd_count,juv_other_count,priors_count,prediction,truth\n'
     for i in range(len(predictions)):
-        for el in x[i]:
+        for el in val_data[i]:
             string += str(el)
             string += ","
         string += str(predictions[i].index(max(predictions[i])))
         string += ","
-        string += str(y[i].index(1.0))
+        string += str(label_list[i].index(1.0))
         string += '\n'
     string = string[:-1]
 
-    with open(args.saveOutput, 'w') as file:
+    with open("ANNTrainingPred.csv", 'w') as file:
         file.write(string)
 
 def confusion_matrix(predictions, truths):
@@ -226,7 +239,7 @@ def confusion_matrix(predictions, truths):
                 tn += 1
             else:
                 fn += 1
-    return [tp, fn, fp, tn]
+    return [tp, tn, fp, fn]
 
 
 if __name__ == "__main__":
