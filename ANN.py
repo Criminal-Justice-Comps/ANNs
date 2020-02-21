@@ -55,7 +55,8 @@ import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import argparse
-
+import csv
+import json
 
 
 def parse_args():
@@ -147,6 +148,41 @@ def ann(x, y, test_x, test_y, batch_size, epochs, num_layers, input_node_num, la
 
         score = model.evaluate(test_x, test_y, verbose=1)
     return score, model
+    
+def create_json(file):
+    data_dictionary = {}
+    people = []
+    with open("ANNTrainingPred.csv", mode='r') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        for row in csv_reader:
+            if row["sex"] == "0.0":
+                data_dictionary["sex"] = "Female"
+            elif row["sex"] == "1.0":
+                data_dictionary["sex"] = "Male"
+                
+            if row["race"] == "0.0":
+                data_dictionary["race"] = "Other"
+            elif row["race"] == "1.0":
+                data_dictionary["race"] = "African-American"
+            elif row["race"] == "2.0":
+                data_dictionary["race"] = "Caucasian"
+            elif row["race"] == "3.0":
+                data_dictionary["race"] = "Hispanic"
+            elif row["race"] == "4.0":
+                data_dictionary["race"] = "Native American"
+            elif row["race"] == "5.0":
+                data_dictionary["race"] = "Asian"
+                
+            data_dictionary["age"] = row["age"]
+            data_dictionary["prediction"] = row["prediction"]
+            data_dictionary["truth"] = row["truth"]
+            people.append(data_dictionary)
+            data_dictionary = {}
+        people_alg_dict = {"people":people, "ANN":[]}
+    
+    with open("../Fairness/ANNPredictions.json", 'w') as file:
+            json.dump(people_alg_dict, file)
+
 
 def main():
     '''Add a comment later'''
@@ -193,7 +229,7 @@ def main():
                           0     {}               {}
         """.format(confusion[0],confusion[1],confusion[2],confusion[3]))
 
-    string = 'age,race,sex,race,age,juv_fel_count,juv_misd_count,juv_other_count,priors_count,prediction,truth\n'
+    string = 'sex,race,age,juv_fel_count,juv_misd_count,juv_other_count,priors_count,prediction,truth\n'
     for i in range(len(predictions)):
         for el in x[i]:
             string += str(el)
@@ -206,6 +242,8 @@ def main():
 
     with open(args.saveOutput, 'w') as file:
         file.write(string)
+    
+    create_json(file)
 
 def confusion_matrix(predictions, truths):
     tp = 0
