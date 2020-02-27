@@ -68,10 +68,10 @@ def parse_args():
     p.add_argument("--loadModel", default='NULL', help='Filepath to load tree from. By default, no tree will be loaded.')
     p.add_argument("--saveOutput", default='ANNPred.csv', help='Filepath to save the ANN in.')
     p.add_argument("--trainSize", type=int, default=8000, help="Number of training examples to use. Validation set will have 9861-trainSize examples")
-    p.add_argument("--inputNodes", type=int, default=16, help="The number of nodes in the input layer. For TVF.csv, this is 7.")
+    p.add_argument("--inputNodes", type=int, default=14, help="The number of nodes in the input layer. For TVF.csv, this is 7.")
     p.add_argument("--epochs", type=int, default=10, help="The number of times to iterate through the data when training the network.")
     p.add_argument("--batchSize", type=int, default=64, help="The batch size to use when training the network.")
-    p.add_argument("--layerSize", type=int, default=16, help="The number of nodes each hidden layer should have.")
+    p.add_argument("--layerSize", type=int, default=14, help="The number of nodes each hidden layer should have.")
     p.add_argument("--guessViolent", action="store_true", default=False, help="Predict Violent Recidivism rather than Recidivism.")
     args = p.parse_args()
     return args
@@ -100,20 +100,20 @@ def get_data(filepath, train_test_split, check_violent):
 
             elif i < train_test_split:
                 person = []
-                for element in split_line:
+                for element in split_line[:-2]:
                     person.append(int(element))
                 training.append(person)
                 training_labels.append(int(split_line[ground_truth]))
             else:
                 person = []
-                for element in split_line:
+                for element in split_line[:-2]:
                     person.append(int(element))
 
                 val_data.append(person)
                 val_labels.append(int(split_line[ground_truth]))
             i += 1
     return np.asarray(training), np.asarray(training_labels), np.asarray(val_data), np.asarray(val_labels)
-
+#numLayers17layerSize16epochs50
 
 def ann(x, y, test_x, test_y, batch_size, epochs, num_layers, input_node_num, layer_size, loadANN):
     # x is the training data array (shape should be ()# of examples, input_node_num))
@@ -224,12 +224,11 @@ def main():
     print("""                                       Truth
                                 1                   0
 
-                          1     {}              {}
+                          1     {}               {}
         Prediction
                           0     {}               {}
         """.format(confusion[0],confusion[1],confusion[2],confusion[3]))
-
-    string = 'sex,race,age,juv_fel_count,juv_misd_count,juv_other_count,priors_count,prediction,truth\n'
+    string = 'person_id,Male,Female,African-American,Other,Caucasian,Hispanic,Native American,Asian,age,juv_fel_count,juv_misd_count,juv_other_count,priors_count,prediction,truth\n'
     for i in range(len(predictions)):
         for el in x[i]:
             string += str(el)
@@ -243,7 +242,7 @@ def main():
     with open(args.saveOutput, 'w') as file:
         file.write(string)
 
-    create_json(file, args.saveOutput)
+    #create_json(file, args.saveOutput)
 
 def confusion_matrix(predictions, truths):
     tp = 0
@@ -264,7 +263,7 @@ def confusion_matrix(predictions, truths):
                 tn += 1
             else:
                 fn += 1
-    return [tp, fn, fp, tn]
+    return [tp, fp, fn, tn]
 
 
 if __name__ == "__main__":

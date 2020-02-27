@@ -12,8 +12,8 @@ CATEGORICAL = {'sex':SEX, 'race':RACE}
 FIRST_NUMERIC = 3
 LAST_CATEGORICAL = 8
 PERSON_LENGTH = 16
-READ_FILE = "partialDataCluster1.csv"
-WRITE_FILE = "PDC1.csv"
+READ_FILE = "ANAMergedTestFeatures.csv"
+WRITE_FILE = "Test.csv"
 NEW_FEATS = ['person_id', 'Male', 'Female', "African-American", "Other", "Caucasian", "Hispanic", "Native American",
              "Asian", 'age', 'juv_fel_count', 'juv_misd_count', 'juv_other_count', 'priors_count',
              'is_recid', 'is_violent_recid\n']
